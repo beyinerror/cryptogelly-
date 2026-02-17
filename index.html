@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CryptoGelly</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{
+  margin:0;
+  background:#0f1117;
+  font-family:Arial, Helvetica, sans-serif;
+  color:white;
+  overflow-x:hidden;
+}
+
+header{
+  text-align:center;
+  padding:20px;
+  font-size:28px;
+  font-weight:bold;
+  letter-spacing:1px;
+}
+
+.container{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:25px;
+  padding:20px;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.gummy{
+  width:170px;
+  height:170px;
+  border-radius:50%;
+  padding:15px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  box-shadow:
+    inset -12px -12px 25px rgba(0,0,0,0.5),
+    inset 10px 10px 25px rgba(255,255,255,0.08),
+    0 8px 20px rgba(0,0,0,0.5);
+  animation: float 5s ease-in-out infinite;
+  transition: transform .3s ease;
+}
+
+.gummy:hover{
+  transform: scale(1.08);
+}
+
+canvas{
+  width:130px !important;
+  height:60px !important;
+}
+
+.price{
+  font-size:14px;
+  margin-top:4px;
+}
+
+.change{
+  font-size:13px;
+  margin-top:2px;
+}
+
+footer{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  text-align:center;
+  font-size:12px;
+  padding:5px;
+  background:rgba(0,0,0,0.6);
+}
+</style>
+</head>
+<body>
+
+<header>CryptoGelly 🍬</header>
+<div class="container" id="coins"></div>
+<footer>Sponsored</footer>
+
+<script>
+let page = 1;
+let loading = false;
+let totalLoaded = 0;
+
+async function loadCoins(){
+  if(loading || totalLoaded >= 500) return;
+  loading = true;
+
+  const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=${page}&sparkline=true`);
+  const data = await res.json();
+
+  data.forEach(coin=>{
+    if(totalLoaded >= 500) return;
+
+    const div = document.createElement("div");
+    div.className = "gummy";
+
+    const positive = coin.price_change_percentage_24h >= 0;
+    div.style.background = positive ?
+      "radial-gradient(circle at 30% 30%, #4cff88, #008f4c)" :
+      "radial-gradient(circle at 30% 30%, #ff5f6d, #8f0015)";
+
+    div.innerHTML = `
+      <strong>${coin.symbol.toUpperCase()}</strong>
+      <canvas id="chart${coin.id}"></canvas>
+      <div class="price">$${coin.current_price}</div>
+      <div class="change">${coin.price_change_percentage_24h?.toFixed(2)}%</div>
+    `;
+
+    document.getElementById("coins").appendChild(div);
+
+    new Chart(document.getElementById(`chart${coin.id}`), {
+      type:'line',
+      data:{
+        labels:coin.sparkline_in_7d.price.map(()=> ""),
+        datasets:[{
+          data:coin.sparkline_in_7d.price,
+          borderColor:"#ffffff",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.4
+        }]
+      },
+      options:{
+        animation:{
+          duration:1200,
+          easing:'easeOutQuart'
+        },
+        plugins:{legend:{display:false}},
+        scales:{x:{display:false},y:{display:false}}
+      }
+    });
+
+    totalLoaded++;
+  });
+
+  page++;
+  loading = false;
+}
+
+window.addEventListener("scroll",()=>{
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 500){
+    loadCoins();
+  }
+});
+
+loadCoins();
+</script>
+
+</body>
+</html>
